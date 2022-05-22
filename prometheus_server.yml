@@ -1,0 +1,36 @@
+---
+- name: test
+  hosts: 192.168.19.152
+  tasks:
+  - name: set repo var
+    set_fact:
+      repo: "prometheus/prometheus"
+
+  - name: get_latest_version
+    uri:
+      url: "https://api.github.com/repos/{{repo}}/releases/latest"
+      return_content: true
+    register: json_response
+
+  - name: get_download_url
+    set_fact:
+      download_url: "{{item.browser_download_url}}"
+    when: '"linux-amd64" in item.name'
+    loop: "{{json_response.json.assets}}"
+
+  - name: download_from_git
+    get_url:
+      url: "{{ download_url }}"
+      dest: ./prometheus.tar.gz
+
+  - name: unzip
+    ansible.builtin.shell:
+      cmd: tar -xvf prometheus.tar.gz
+
+  - name: rename foder
+    ansible.builtin.shell:
+      cmd: mv prometheus-* prometheus
+
+  - name: cleanup
+    ansible.builtin.shell:
+      cmd: rm -rf prometheus.tar.gz
